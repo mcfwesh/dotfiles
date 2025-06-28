@@ -162,7 +162,7 @@ if [ $(whoami) != "codespace" ]; then export PATH="/opt/homebrew/opt/ruby/bin:$P
 # This file contains environment variables and aliases that are specific to Benevity.
 source ~/.benevity_rc
 
-## AWS ENVIRONMENT
+# AWS ENVIRONMENT
 case "$AWS_PROFILE" in
     (*_prod | *_prod_*) color="%F{red}"  ;;
     (*_preprod | *_staging | *_stage*) color="%F{yellow}"  ;;
@@ -188,13 +188,24 @@ aws_profile_short () {
 # Load colors and set prompt
 autoload -U colors && colors
 
-# Defining some colors for the prompt
+## Defining some colors for the prompt
 COLOR_DIR="%F{blue}"
 COLOR_GIT="%F{yellow}"
 COLOR_DEF="%f"
 
 setopt PROMPT_SUBST
 
-# Set the prompt structure
+## Set the prompt structure
 PROMPT='${COLOR_DIR}%~ ${COLOR_GIT}$(parse_git_repo) - $(parse_git_branch)${COLOR_DEF} $ '
 RPROMPT='$(aws_profile_short)'
+
+# Set the root for pyenv
+export PYENV_ROOT="$HOME/.pyenv"
+
+# General environment settings
+export TFENV_ARCH="amd64"
+export MallocNanoZone=0 # For compatibility with some tools
+
+# Personal helper alias
+export TFROOT="$HOME/Documents/repos/terraform"
+export TASKROOT="$HOME/Documents/repos/task-notes"

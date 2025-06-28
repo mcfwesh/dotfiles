@@ -1,0 +1,671 @@
+#!/bin/bash
+
+############################################################
+# Virtual Environments
+############################################################
+eval "$(rbenv init -)"
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+
+############################################################
+# Terraform aliases
+############################################################
+alias tfinit='terraform init'
+alias tflock='terraform providers lock -platform="linux_amd64" -platform="darwin_amd64" -platform="darwin_arm64"'
+alias tfplan='terraform plan -out ~/ops/tfplans/"$AWS_PROFILE"_"$(basename $(pwd))"_"$(date +%F_%H_%M_%S)".tfplan'
+alias tfapply='terraform apply "$(ls -w1 -t ~/ops/tfplans/${AWS_PROFILE}_$(basename $(pwd))_* | head -1)"'
+alias tfshow='terraform show -no-color "$(ls -w1 -t ~/ops/tfplans/${AWS_PROFILE}_$(basename $(pwd))_* | head -1)"'
+
+############################################################
+# Other aliases
+############################################################
+# Alias for devtool windows box
+alias devtools='aws ssm start-session --target i-0980e188de058576e --document-name AWS-StartPortForwardingSession --parameters "localPortNumber=55678,portNumber=3389"'
+
+############################################################
+# Ansible helper functions
+############################################################
+
+# Run a drush against a client
+#   Usage:
+#     spark-drush [client] [drush]
+#
+#   Example:
+#     spark-drush citi "vget company"
+spark-drush() {
+  client=$1
+  drush=$2
+
+  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN $drush warn=false" -b -f1
+}
+
+# Get a uli for a Spark client
+#   Usage:
+#     spark-uli [client] [username (optional)]
+#
+#   Example:
+#     spark-uli citi
+#     spark-uli citi flastname@benevity.com
+spark-uli() {
+  client=$1
+  email=$2
+
+  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN uli $email warn=false" -b -f1
+}
+
+##########################################################
+# StrongDM helper functions
+##########################################################
+
+# Ensure Strongdm is running, and logged in
+#
+# Usage:
+#   strongdm-ready
+strongdm-ready() {
+  email=$(git config user.email)
+
+  # If strongdm isn't ready, attempt to start sdm and login
+  if ! sdm ready --quiet; then
+    echo "starting strongdm"
+    sdm ready --gui --quiet
+    echo $?
+    sdm login --email "$email"
+  fi
+
+  i=0
+  max_wait=5
+  until sdm ready --quiet; do
+    sleep 1
+
+    i+=1
+    if [ "$i" -gt $max_wait ]; then
+      # Something went wrong (retry the task; 'sdm ready --help' for more details)
+      sdm ready
+      echo "strongdm failed readiness check (error: $?)"
+      return
+    fi
+  done
+}
+
+# Connect to a database via mysql cli
+#
+# Usage:
+#   db [database-name (exact match required)]
+db() {
+  db_name=$1
+
+  strongdm-ready
+
+  sdm connect "$db_name"
+
+  db_status=$(sdm status --filter "name:${db_name}" -j)
+  hostname=$(jq -r '.[].hostname' <<< "$db_status")
+  port=$(jq -r '.[].port' <<< "$db_status")
+  type=$(jq -r '.[].type' <<< "$db_status")
+
+  echo "Connecting to $hostname:$port"
+  if [[ $type == *mysql* ]]; then
+    mysql -A -h 127.0.0.1 -P "$port"
+  fi
+}
+
+# Send a query to a database via strongdm cli
+#
+# Usage:
+#   db-send-query [database-name (exact match required)] [db-query (required)]
+db-send-query() {
+  db_name=$1
+  query=$2
+
+  strongdm-ready
+
+  sdm connect "$db_name"
+
+  db_status=$(sdm status --filter "name:${db_name}" -j)
+  port=$(jq '.[].port' <<< "$db_status")
+  type=$(jq '.[].type' <<< "$db_status")
+
+  if [[ $type == *mysql* ]]; then
+    mysql -A -h 127.0.0.1 -P "$port" -e "$query"
+  fi
+}
+
+# Get a list of resources in strongdm by name
+#
+# Usage:
+#   db-list-full [database-name (optional)]
+db-list-full() {
+  db_name=$1
+
+  strongdm-ready
+
+  sdm status --filter "name:*${db_name}*"
+}
+
+# Get a json parsed list of resources in strongdm by name
+#
+# Usage:
+#   db-list [database-name (optional)]
+db-list() {
+  db_name=$1
+
+  strongdm-ready
+
+  sdm status --filter "name:*${db_name}*" -j | jq '.[] | {name: .name, connection_status: .connection_status, port: .port}'
+}
+
+#################################################################################
+##                                                                             ##
+##  _                           _ _             ____       ___        ______   ##
+## | |__   ___ _ __   _____   _(_) |_ _   _    / __ \     / \ \      / / ___|  ##
+## | '_ \ / _ \ '_ \ / _ \ \ / / | __| | | |  / / _` |   / _ \ \ /\ / /\___ \  ##
+## | |_) |  __/ | | |  __/\ V /| | |_| |_| | | | (_| |  / ___ \ V  V /  ___) | ##
+## |_.__/ \___|_| |_|\___| \_/ |_|\__|\__, |  \ \__,_| /_/   \_\_/\_/  |____/  ##
+##                                    |___/    \____/                          ##
+#################################################################################
+
+export ENABLE_SET_BACKGROUND_COLOR=true
+export ENABLE_SET_TAB_COLOR=true
+export ENABLE_SSH_KEY_MANAGEMENT=true
+export SSH_KEY_DIR="${HOME}/.ssh/"
+export AWS_PAGER=""
+
+# Helper for confd-lookup to get SSM parameters in batches
+get_parameters_in_batches() {
+  local json_list="$1"
+  local batch_size=10
+  local total_params
+
+  # Get the total count of parameters
+  total_params=$(echo "$json_list" | jq '. | length')
+
+  # Loop through the JSON array in batches
+  for ((i = 0; i < total_params; i += batch_size)); do
+    # Extract a batch of parameter names as a space-separated string
+    batch=$(echo "$json_list" | jq -r ".[$i:$((i + batch_size))]")
+
+    # Run the AWS CLI command for this batch
+    echo "SSM params $i to $(( total_params < i + batch_size ? total_params : i + batch_size )) (total $total_params)"
+    aws ssm get-parameters \
+      --cli-input-json '{ "Names": '"$batch"' }' \
+      --query 'Parameters[*].[Name,Value,Type]' \
+      --with-decryption \
+      --output table
+  done
+}
+
+# Get confd values from the confd-backend DynamoDB table and
+#     SSM Parameters
+#
+#   Usage:
+#     confd-lookup [path (optional)]
+#
+#   Example:
+#     confd-lookup /testenv/newrelic/agent_enabled
+confd-lookup() {
+  filter="/"
+  if [[ -n $1 ]]; then
+    filter="$1"
+  fi
+
+  echo "DynamoDB:"
+  aws dynamodb scan \
+    --table-name confd-backend \
+    --scan-filter '{
+      "key": {
+        "AttributeValueList": [ { "S": '\""${filter}"\"' } ],
+        "ComparisonOperator": "CONTAINS"
+      }
+    }' \
+    --query 'Items[].[key.S,value.S]' \
+    --output table
+
+  ssm_params=$(aws ssm describe-parameters \
+    --parameter-filters "Key=Name,Option=Contains,Values=$filter" \
+    --query 'Parameters[].Name' \
+    --output json)
+
+  echo "SSM:"
+  get_parameters_in_batches "$ssm_params"
+}
+
+# Get confd values from the confd-backend DynamoDB table by value
+#
+#   Usage:
+#     confd-vlookup <some-string-in-value-to-find-keys-that-use-it>
+#
+#   Example:
+#     confd-vlookup 61617
+confd-vlookup() {
+  filter="/"
+  if [[ -n $1 ]]; then
+    filter="$1"
+  fi
+
+  echo "DynamoDB:"
+  aws dynamodb scan \
+    --table-name confd-backend \
+    --scan-filter '{
+      "value": {
+        "AttributeValueList": [ { "S": '\""${filter}"\"' } ],
+        "ComparisonOperator": "CONTAINS"
+      }
+    }' \
+    --query 'Items[].[key.S,value.S]' \
+    --output text
+}
+# Set confd values in the confd-backend DynamoDB table and
+#     SSM Parameter
+#
+#   Usage:
+#     confd-update [path (optional)]
+#
+#   Example:
+#     confd-update /testenv/newrelic/agent_enabled true
+confd-update() {
+  name=$1
+  value=$2
+  ssm_param_type=$3
+  kms_key_arn=$4
+
+  if [[ -z "$name" ]] || [[ -z "$value" ]]; then
+    echo "Must specify parameter name and value"
+    return 1
+  fi
+
+  ssm_params=$(jq -Rn '{
+    "Name": '\"${name}\"',
+    "Value": '\"${value}\"',
+    "Overwrite": true
+  }')
+
+  # if the param is a SecureString, add the kms key, otherwise create the param as a String
+  if [[ -z "$ssm_param_type" ]] || [[ "$ssm_param_type" == "String" ]]; then
+    ssm_params=$(echo "$ssm_params" | jq '. + { "Type": "String" }')
+  elif [[ "$ssm_param_type" == "SecureString" ]]; then
+    ssm_params=$(
+      echo "$ssm_params" | jq '. +
+      {
+        "Type": "SecureString",
+        "KeyId": '\"${kms_key_arn}\"'
+      }'
+    )
+  fi
+
+  # set ddb item
+  aws dynamodb put-item --table-name confd-backend --item \
+    '{
+    "key": { "S": '\"${name}\"'},
+    "value": { "S": '\"${value}\"'}
+  }'
+
+  # set ssm parameter
+  aws ssm put-parameter --cli-input-json "$ssm_params"
+}
+
+# Get a list of AWS instances
+#   Usage:
+#     aws-list [instance_name (optional)]
+#
+#   Example:
+#     aws-list
+#     aws-list prod-plat
+function aws-list() {
+  if [[ -n $1 ]]; then
+    filter="--filters \"Name=instance-state-name,Values=running\" \"Name=tag:Name,Values=*$1*\""
+  else
+    filter="--filters \"Name=instance-state-name,Values=running\""
+  fi
+  eval "aws ec2 describe-instances ${filter} --query \"Reservations[].Instances[].{Ip:PrivateIpAddress,State:State.Name,Name:Tags[?Key=='Name'].Value|[0],ServerRole:Tags[?Key=='serverrole'].Value|[0],Id:InstanceId}|sort_by(@,&Name)[]\" --output table"
+}
+
+# Get a dns record from Route 53
+#   Usage:
+#     aws-dns-record dns_record domain_name (both required)
+#
+#   Example:
+#     aws-dns-record skyline benevity-devtools.org
+function aws-dns-record() {
+  dns_record=${1}
+  domain=${2}
+
+  if [[ -z "$dns_record"  ]] || [[ -z "$domain"  ]]; then
+    echo "Must specify dns_record and domain name. Example: aws-dns-record skyline benevity-devtools.org"
+    return 1
+  fi
+
+  HOSTED_ZONE=`aws route53 list-hosted-zones-by-name --dns-name ${2} | jq '.HostedZones[].Id' | sed -E 's/"\/hostedzone\/(.*)"/\1/g'`
+  aws route53 list-resource-record-sets --hosted-zone-id ${HOSTED_ZONE} --query "ResourceRecordSets[?Name == '${1}.${2}.']"
+}
+
+# Get a detailed list of AWS instances
+#   Usage:
+#     aws-list-detail [instance_name (optional)]
+#
+#   Example:
+#     aws-list-detail
+#     aws-list-detail prod-plat
+function aws-list-detail() {
+  instance_name=$1
+  region=$2
+
+  if [[ -z "$region" ]]; then
+    region=$AWS_REGION
+  fi
+
+  aws ec2 describe-instances \
+    --query "Reservations[*].Instances[*].[
+      Tags[?Key=='Name'] | [0].Value,
+      Tags[?Key=='environment'] | [0].Value,
+      Tags[?Key=='kingdom'] | [0].Value,
+      Tags[?Key=='species'] | [0].Value,
+      LaunchTime,
+      InstanceId,
+      NetworkInterfaces[].PrivateIpAddresses[].PrivateIpAddress | [0],
+      NetworkInterfaces[].PrivateIpAddresses[].PrivateIpAddress | [1],
+      PublicIpAddress,
+      InstanceType,
+      State.Name
+    ] | sort_by(@, &@[0][0])" \
+    --filters "Name=tag-value,Values=*$instance_name*" \
+    --output table \
+    --region $region
+}
+
+function aws-whoami() {
+  aws sts get-caller-identity
+}
+
+# configure ssh-agent
+function aws-ssh-agent-update() {
+  if $ENABLE_SSH_KEY_MANAGEMENT; then
+    local AWS_PEM
+    case $1 in
+      benevity_live_prod)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-live.org"
+        ;;
+      benevity_live_dr)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-live-dr.org"
+        ;;
+      benevity_live_preprod)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-preprod.org"
+        ;;
+      benevity_live_staging)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-staging.org"
+        ;;
+      benevity_staging_uat)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-uat.org"
+        ;;
+      benevity_shared_prod)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-shared.org"
+        ;;
+      benevity_mgmt_security)
+        AWS_PEM="${SSH_KEY_DIR}bastion.benevity-security.org"
+        ;;
+      *)
+        return
+    esac
+    eval $(ssh-agent) >/dev/null 2>&1
+    ssh-add -D >/dev/null 2>&1
+    ssh-add "$AWS_PEM"
+  fi
+}
+
+# start an ssm session ("ash i-0a503e0c181c888f0")
+function ash() {
+  aws ssm start-session --target $1
+}
+
+function aws-auth() {
+  if [[ -z "$1" ]]; then
+    unset AWS_DEFAULT_PROFILE AWS_PROFILE AWS_EB_PROFILE
+    echo AWS profile cleared.
+    return
+  fi
+
+  local -a available_profiles
+  available_profiles=($(aws_profiles))
+
+  case $SHELL in
+    /bin/bash)
+      if [[ ! "${available_profiles[@]}" =~ " $1 " ]]; then
+        echo "Profile '$1' not found in '${AWS_CONFIG_FILE:-$HOME/.aws/config}'" >&2
+        echo "Available profiles: '${available_profiles[@]:-no profiles found}'" >&2
+        return 1
+      fi
+      ;;
+    /bin/zsh)
+      if [[ -z "${available_profiles[(r)$1]}" ]]; then
+        echo "${fg[red]}Profile '$1' not found in '${AWS_CONFIG_FILE:-$HOME/.aws/config}'" >&2
+        echo "Available profiles: ${(j:, :)available_profiles:-no profiles found}${reset_color}" >&2
+        return 1
+      fi
+      ;;
+  esac
+
+  export AWS_DEFAULT_PROFILE="$1"
+  export AWS_PROFILE="$1"
+  export AWS_EB_PROFILE="$1"
+  aws sso login && \
+    awssso && \
+    set_colors "$1" && \
+    aws-whoami && \
+    aws-ssh-agent-update "$1"
+}
+
+function aws_profiles() {
+  [[ -r "${AWS_CONFIG_FILE:-$HOME/.aws/config}" ]] || return 1
+  grep --color=never -Eo '\[.*\]' "${AWS_CONFIG_FILE:-$HOME/.aws/config}" | sed -E 's/^[[:space:]]*\[(profile)?[[:space:]]*([-_[:alnum:]\.@]+)\][[:space:]]*$/\2/g'
+}
+
+function _aws_profiles() {
+  case $SHELL in
+    /bin/bash)
+      local word="${COMP_WORDS[COMP_CWORD]}"
+      COMPREPLY=($(compgen -W "$(aws_profiles)" -- "$word"))
+      ;;
+    /bin/zsh)
+      reply=($(aws_profiles))
+      ;;
+  esac
+}
+
+# tab-completion for aws profile names
+case $SHELL in
+  /bin/bash)
+    complete -F _aws_profiles aws-auth
+    ;;
+  /bin/zsh)
+    compctl -K _aws_profiles aws-auth
+    ;;
+  *)
+    echo "aws profile tab-completion not available for $SHELL"
+    ;;
+esac
+
+function asp () {
+	if [[ -z "$1" ]]
+	then
+		unset AWS_DEFAULT_PROFILE AWS_PROFILE AWS_EB_PROFILE
+		echo AWS profile cleared.
+		return
+	fi
+	local -a available_profiles
+	available_profiles=($(aws_profiles))
+	if [[ -z "${available_profiles[(r)$1]}" ]]
+	then
+		echo "${fg[red]}Profile '$1' not found in '${AWS_CONFIG_FILE:-$HOME/.aws/config}'" >&2
+		echo "Available profiles: ${(j:, :)available_profiles:-no profiles found}${reset_color}" >&2
+		return 1
+	fi
+	export AWS_DEFAULT_PROFILE=$1
+	export AWS_PROFILE=$1
+	export AWS_EB_PROFILE=$1
+}
+
+
+# </Benevity AWS General>
+##############################################################################
+# <terminal-colors>
+# this will change the tab color and background color of your terminal window when you switch environments
+function set_colors() {
+  if [ -z "$1" ]; then
+    echo "Profile name required to set colors"
+    return
+  fi
+
+  case $1 in
+    benevity_live_prod)
+      _set_colors red
+      ;;
+    benevity_live_preprod)
+      _set_colors green
+      ;;
+    benevity_live_staging)
+      _set_colors purple
+      ;;
+    benevity_staging_uat)
+      _set_colors green
+      ;;
+    benevity_live_dr)
+      _set_colors purple
+      ;;
+    benevity_core_pipeline)
+      _set_colors purple
+      ;;
+    benevity_master)
+      _set_colors purple
+      ;;
+    benevity_mgmt_iam)
+      _set_colors purple
+      ;;
+    benevity_mgmt_security)
+      _set_colors purple
+      ;;
+    benevity_product_dev)
+      _set_colors green
+      ;;
+    benevity_product_devtools)
+      _set_colors purple
+      ;;
+    benevity_product_poc)
+      _set_colors green
+      ;;
+    benevity_product_qa)
+      _set_colors green
+      ;;
+    benevity_shared_prod)
+      _set_colors red
+      ;;
+    benevity_shared_qa)
+      _set_colors green
+      ;;
+    benevity_sre_qa)
+      _set_colors green
+      ;;
+    benevity_streams_prod)
+      _set_colors red
+      ;;
+    benevity_streams_pre_prod)
+      _set_colors green
+      ;;
+    benevity_streams_uat)
+      _set_colors green
+      ;;
+    benevity_grantsdev_shared)
+      _set_colors green
+      ;;
+    benevity_dev_versaic)
+      _set_colors purple
+      ;;
+    benevity_devtest_versaic)
+      _set_colors green
+      ;;
+    benevity_poc_versaic)
+      _set_colors green
+      ;;
+    benevity_prod_versaic)
+      _set_colors red
+      ;;
+    benevity_prodtest_versaic)
+      _set_colors green
+      ;;
+    benevity_sandbox_versaic)
+      _set_colors purple
+      ;;
+    benevity_sandboxtest_versaic)
+      _set_colors green
+      ;;
+    benevity_shared_versaic)
+      _set_colors red
+      ;;
+    benevity_stage_versaic)
+      _set_colors purple
+      ;;
+    benevity_stagetest_versaic)
+      _set_colors green
+      ;;
+    benevity_uat_versaic)
+      _set_colors purple
+      ;;
+    *)
+      echo "Warning: $1 does not have a defined color scheme, using yellow!"
+      _set_colors yellow
+      ;;
+  esac
+}
+
+function _set_colors() {
+  case $1 in
+    red)
+      set_bg_color 50 0 0
+      set_tab_color 270 60 83
+      ;;
+    blue)
+      set_bg_color 0 0 230
+      set_tab_color 0 0 255
+      ;;
+    green)
+      set_bg_color 0 33 0
+      set_tab_color 57 197 77
+      ;;
+    purple)
+      set_bg_color 40 10 50
+      set_tab_color 120 30 120
+      ;;
+    yellow)
+      set_bg_color 255 255 0
+      set_tab_color 255 255 0
+  esac
+}
+
+function set_bg_color() {
+  if $ENABLE_SET_BACKGROUND_COLOR; then
+    /usr/bin/osascript <<EOT
+tell application "iTerm"
+    tell the current window
+        tell the current session
+            set background color to {$(($1 * 65535 / 255)), $(($2 * 65535 / 255)), $(($3 * 65535 / 255))}
+        end tell
+    end tell
+end tell
+EOT
+  fi
+}
+
+function set_tab_color() {
+  if $ENABLE_SET_TAB_COLOR; then
+    echo -ne "\033]6;1;bg;red;brightness;$1\a"
+    echo -ne "\033]6;1;bg;green;brightness;$2\a"
+    echo -ne "\033]6;1;bg;blue;brightness;$3\a"
+  fi
+}
+
+# </terminal-colors>
+##############################################################################
+
+###Personal alias#####
+alias check='echo $AWS_PROFILE'
+alias tfreconfigure='terraform init -reconfigure'
+alias tfupdate='terraform init --upgrade && tflock'
+alias tfversion="terraform state pull | jq '.terraform_version'"

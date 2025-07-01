@@ -669,3 +669,4 @@ alias check='echo $AWS_PROFILE'
 alias tfreconfigure='terraform init -reconfigure'
 alias tfupdate='terraform init --upgrade && tflock'
 alias tfversion="terraform state pull | jq '.terraform_version'"
+alias tfdelete='rm -rf $(pwd)/.terraform'

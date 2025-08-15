@@ -662,6 +662,31 @@ function set_tab_color() {
   fi
 }
 
+function list_running_instances_with_amis() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: list_running_instances_with_amis <owner-id>"
+    return 1
+  fi
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].{InstanceId: InstanceId, ImageId: ImageId, Name: Tags[?Key==`Name`].Value | [0]}' --output json | jq -r --argjson owned_amis "$(aws ec2 describe-images --owners $1 --query 'Images[*].ImageId' --output json)" 'flatten | map(select(type == "object" and .ImageId != null)) | map(select(.ImageId as $id | $owned_amis | index($id))) | group_by(.ImageId) | .[] | (.[0].ImageId, (.[] | "  \(.InstanceId)  \(.Name // "No Name Tag")"))'
+
+}
+
+function encrypt_string() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: encrypt_string <string>"
+    return 1
+  fi
+  aws kms encrypt --key-id alias/ssm --output text --query CiphertextBlob --cli-binary-format raw-in-base64-out --plaintext fileb://<( echo -n "$1")
+}
+
+function decrypt_string() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: decrypt_string <base64-encoded-ciphertext>"
+    return 1
+  fi
+  aws kms decrypt --ciphertext-blob fileb://<(echo -n "$1" | base64 --decode) --output text --query Plaintext --cli-binary-format raw-in-base64-out | base64 --decode
+}
+
 # </terminal-colors>
 ##############################################################################
 
@@ -672,3 +697,4 @@ alias tfupdate='terraform init --upgrade && tflock'
 alias tfversion="terraform state pull | jq '.terraform_version'"
 alias tfdelete='rm -rf $(pwd)/.terraform'
 alias amis_instances_running='aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].ImageId" --output json | jq -r ".[]" | sort -u'
+alias tfmake='make -f /Users/nathan.ojieabu/Documents/repos/task-notes/Makefile'

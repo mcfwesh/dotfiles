@@ -107,3 +107,6 @@ set_colors() {
 export PATH=/Users/nathan.ojieabu/Applications/sonar-scanner-7.1.0.4889-macosx-aarch64/bin:$PATH
 export TFROOT=/Users/nathan.ojieabu/Documents/repos/terraform
 export TASKROOT=/Users/nathan.ojieabu/Documents/repos/task-notes
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

@@ -10,11 +10,17 @@ eval "$(pyenv init -)"
 ############################################################
 # Terraform aliases
 ############################################################
-alias tfinit='terraform init'
+alias tfinit='terraform init && tflock'
 alias tflock='terraform providers lock -platform="linux_amd64" -platform="darwin_amd64" -platform="darwin_arm64"'
 alias tfplan='terraform plan -out ~/ops/tfplans/"$AWS_PROFILE"_"$(basename $(pwd))"_"$(date +%F_%H_%M_%S)".tfplan'
 alias tfapply='terraform apply "$(ls -w1 -t ~/ops/tfplans/${AWS_PROFILE}_$(basename $(pwd))_* | head -1)"'
 alias tfshow='terraform show -no-color "$(ls -w1 -t ~/ops/tfplans/${AWS_PROFILE}_$(basename $(pwd))_* | head -1)"'
+alias gcptfinitnonprod='terraform init -backend-config=config/us-east4/default/environments/nonprod/nonprod.backend.hcl'
+alias gcptfinitprod='terraform init -backend-config=config/us-east4/default/environments/prod/prod.backend.hcl'
+alias gcptfreconfigurenonprod='terraform init -reconfigure -backend-config=config/us-east4/default/environments/nonprod/nonprod.backend.hcl'
+alias gcptfreconfigureprod='terraform init -reconfigure -backend-config=config/us-east4/default/environments/prod/prod.backend.hcl'
+alias gcptfplannonprod='terraform plan -var-file=config/us-east4/default/environments/nonprod/nonprod.tfvars'
+alias gcptfplanprod='terraform plan -var-file=config/us-east4/default/environments/prod/prod.tfvars'
 
 ############################################################
 # Other aliases
@@ -671,6 +677,18 @@ aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" -
 
 }
 
+function launch_times() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: launch_times <owner-id>"
+    return 1
+  fi
+
+ aws ec2 describe-images \
+  --owners $1 \
+  --query "sort_by(Images[?LastLaunchedTime], &LastLaunchedTime) | reverse(@) | [:5] | [].{ImageId: ImageId, LastLaunchedTime: LastLaunchedTime}" \
+  --output table
+}
+
 function encrypt_string() {
   if [[ -z "$1" ]]; then
     echo "Usage: encrypt_string <string>"
@@ -687,14 +705,245 @@ function decrypt_string() {
   aws kms decrypt --ciphertext-blob fileb://<(echo -n "$1" | base64 --decode) --output text --query Plaintext --cli-binary-format raw-in-base64-out | base64 --decode
 }
 
+function gcp_encrypt_cockroach_string() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gcp_encrypt_cockroach_string <string>"
+    return 1
+  fi
+  if [[ -z "$2" ]]; then
+    echo "Usage: gcp_encrypt_cockroach_string <string> <gcp-project-id>"
+    return 1
+  fi
+  echo -n "$1" | gcloud kms encrypt --key cockroachdb-key --keyring=cockroachdb-keyring --location=us-east4 --plaintext-file=- --ciphertext-file=- --project="$2" | base64
+}
+
+function gcp_decrypt_cockroach_string() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gcp_decrypt_cockroach_string <base64-encoded-ciphertext>"
+    return 1
+  fi
+  if [[ -z "$2" ]]; then
+    echo "Usage: gcp_decrypt_cockroach_string <base64-encoded-ciphertext> <gcp-project-id>"
+    return 1
+  fi
+  echo -n "$1" | base64 --decode | gcloud kms decrypt --key cockroachdb-key --keyring=cockroachdb-keyring --location=us-east4 --ciphertext-file=- --plaintext-file=- --project="$2"
+}
+
+# ============================================
+# JIRA CLI Functions (Full Descriptions)
+# ============================================
+
+# Recursive text extractor for Atlassian Document Format
+JQ_EXTRACT=$'
+  def extract_text:
+    if type == "object" then
+      if .type == "text" then .text
+      elif .type == "hardBreak" then "\\\\n"
+      elif .content then (.content | map(extract_text) | join(""))
+      else ""
+      end
+    elif type == "array" then
+      map(extract_text) | join("")
+    else ""
+    end;
+'
+
+JIRA_AUTH="${ATLASSIAN_USER_EMAIL}:${ATLASSIAN_API_TOKEN}"
+
+# ============================================
+# 1. SEARCH BY KEYWORD
+# ============================================
+jira-search() {
+  if [ -z "$1" ]; then
+    echo "Usage: jira-search <keyword>"
+    return 1
+  fi
+
+  curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"jql\": \"assignee = currentUser() AND text ~ \\\"$1\\\" ORDER BY status DESC, updated DESC\",
+      \"maxResults\": 50,
+      \"fields\": [\"key\", \"summary\", \"status\", \"description\"]
+    }" | jq -r "${JQ_EXTRACT}"'
+      .issues[] |
+      "==============================================",
+      "[\(.key)] \(.fields.summary)",
+      "STATUS: \(.fields.status.name)",
+      "",
+      "DESCRIPTION:",
+      (if .fields.description then (.fields.description.content | map(extract_text) | join("\n")) else "No description" end),
+      ""
+    '
+}
+
+# ============================================
+# 2. CURRENT SPRINT TASKS (excludes DEVOPS-2833 epic)
+# ============================================
+jira-sprint() {
+  local EPIC="DEVOPS-2833"
+
+  # Get stories under the epic
+  local STORIES=$(curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d "{\"jql\": \"\\\"Epic Link\\\" = ${EPIC} OR parent = ${EPIC}\", \"maxResults\": 200, \"fields\": [\"key\"]}" \
+    | jq -r '.issues[].key' | tr '\n' ',' | sed 's/,$//')
+
+  # Get subtasks of those stories
+  local SUBTASKS=$(curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d "{\"jql\": \"parent IN (${STORIES})\", \"maxResults\": 200, \"fields\": [\"key\"]}" \
+    | jq -r '.issues[].key' | tr '\n' ',' | sed 's/,$//')
+
+  # Build exclusion list
+  local EXCLUDE="${EPIC},${STORIES},${SUBTASKS}"
+
+  # Get sprint tickets with full descriptions
+  curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"jql\": \"assignee = currentUser() AND sprint in openSprints() AND key NOT IN (${EXCLUDE}) ORDER BY status DESC, updated DESC\",
+      \"maxResults\": 100,
+      \"fields\": [\"key\", \"summary\", \"status\", \"description\"]
+    }" | jq -r "${JQ_EXTRACT}"'
+      .issues[] |
+      "==============================================",
+      "[\(.key)] \(.fields.summary)",
+      "STATUS: \(.fields.status.name)",
+      "",
+      "DESCRIPTION:",
+      (if .fields.description then (.fields.description.content | map(extract_text) | join("\n")) else "No description" end),
+      ""
+    '
+}
+
+# ============================================
+# 3. ALL TICKETS EVER ASSIGNED
+# ============================================
+jira-all() {
+  curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "jql": "assignee = currentUser() ORDER BY status DESC, updated DESC",
+      "maxResults": 100,
+      "fields": ["key", "summary", "status", "description"]
+    }' | jq -r "${JQ_EXTRACT}"'
+      .issues[] |
+      "==============================================",
+      "[\(.key)] \(.fields.summary)",
+      "STATUS: \(.fields.status.name)",
+      "",
+      "DESCRIPTION:",
+      (if .fields.description then (.fields.description.content | map(extract_text) | join("\n")) else "No description" end),
+      ""
+    '
+}
+
+# ============================================
+# 4. GET TICKET BY KEY (with Epic children)
+# ============================================
+jira-ticket() {
+  if [ -z "$1" ]; then
+    echo "Usage: jira-ticket <TICKET-KEY>"
+    return 1
+  fi
+
+  local TICKET="$1"
+
+  # Get ticket info - sanitize control characters before jq
+  local RESULT=$(curl -s -X GET \
+    "https://benevity.atlassian.net/rest/api/3/issue/${TICKET}?fields=key,summary,description,issuetype,status" \
+    -u "$JIRA_AUTH" \
+    -H "Accept: application/json" | tr -d '\000-\011\013\014\016-\037')
+
+  local ISSUE_TYPE=$(printf '%s' "$RESULT" | jq -r '.fields.issuetype.name')
+
+  echo ""
+  printf '%s' "$RESULT" | jq -r "${JQ_EXTRACT}"'
+    "==============================================",
+    "\(.key) [\(.fields.issuetype.name)]",
+    "==============================================",
+    "",
+    "TITLE: \(.fields.summary)",
+    "STATUS: \(.fields.status.name)",
+    "",
+    "DESCRIPTION:",
+    (if .fields.description then (.fields.description.content | map(extract_text) | join("\n")) else "No description" end),
+    ""
+  '
+
+  # If Epic, get children
+  if [ "$ISSUE_TYPE" = "Epic" ]; then
+    echo ""
+    echo "=============================================="
+    echo "STORIES UNDER THIS EPIC"
+    echo "=============================================="
+
+    curl -s -X POST \
+      "https://benevity.atlassian.net/rest/api/3/search/jql" \
+      -u "$JIRA_AUTH" \
+      -H "Content-Type: application/json" \
+      -d "{\"jql\": \"\\\"Epic Link\\\" = ${TICKET}\", \"maxResults\": 100, \"fields\": [\"key\", \"summary\", \"status\", \"description\"]}" \
+      | tr -d '\000-\011\013\014\016-\037' \
+      | jq -r "${JQ_EXTRACT}"'
+        .issues[] |
+        "----------------------------------------------",
+        "[\(.key)] \(.fields.summary)",
+        "STATUS: \(.fields.status.name)",
+        "",
+        "DESCRIPTION:",
+        (if .fields.description then (.fields.description.content | map(extract_text) | join("\n")) else "No description" end),
+        ""
+      '
+  fi
+}
+
+# ============================================
+# 5. GET JUST TICKET KEYS (for piping)
+# ============================================
+jira-keys() {
+  if [ -z "$1" ]; then
+    echo "Usage: jira-keys <keyword>"
+    return 1
+  fi
+
+  curl -s -X POST \
+    "https://benevity.atlassian.net/rest/api/3/search/jql" \
+    -u "$JIRA_AUTH" \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"jql\": \"assignee = currentUser() AND text ~ \\\"$1\\\" ORDER BY status DESC, updated DESC\",
+      \"maxResults\": 50,
+      \"fields\": [\"key\"]
+    }" | jq -r '.issues[].key'
+}
+
 # </terminal-colors>
 ##############################################################################
 
 ###Personal alias#####
 alias check='echo $AWS_PROFILE'
-alias tfreconfigure='terraform init -reconfigure'
+alias tfreconfigure='terraform init -reconfigure && tflock'
 alias tfupdate='terraform init --upgrade && tflock'
 alias tfversion="terraform state pull | jq '.terraform_version'"
 alias tfdelete='rm -rf $(pwd)/.terraform'
 alias amis_instances_running='aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].ImageId" --output json | jq -r ".[]" | sort -u'
 alias tfmake='make -f /Users/nathan.ojieabu/Documents/repos/task-notes/Makefile'
+alias tflist='terraform state list'
+alias amiupdate='/Users/nathan.ojieabu/Documents/repos/task-notes/helper-scripts/ami-update-pr.sh'
+alias cockroach_product_dev='PGPASSWORD=$(cat /Users/nathan.ojieabu/Documents/repos/dotfiles/pass) PGSSLMODE=verify-full PGSSLROOTCERT="$HOME/Library/CockroachCloud/certs/8c251dc5-8aa8-40a8-8d08-214f01a4e1ed/product-dev-cockroach-ca.crt" cockroach sql --host=product-dev-cockroach-tq5.aws-us-east-1.cockroachlabs.cloud --port=26257 --user=master --database=defaultdb'
+alias cockroach_preprod='PGPASSWORD="H{3i2RJz-1dl28CjJ?lu" PGSSLMODE=verify-full PGSSLROOTCERT="$HOME/Library/CockroachCloud/certs/8c251dc5-8aa8-40a8-8d08-214f01a4e1ed/pre-prod-cockroach-ca.crt" cockroach sql --host=pre-prod-cockroach-tq7.aws-us-east-1.cockroachlabs.cloud --port=26257 --user=master --database=defaultdb'
+alias cockroach_staging='PGPASSWORD="ZYnOwq@I%F0L}-5sDP!e" PGSSLMODE=verify-full PGSSLROOTCERT="$HOME/Library/CockroachCloud/certs/8c251dc5-8aa8-40a8-8d08-214f01a4e1ed/client-staging-cockroach-ca.crt" cockroach sql --host=client-staging-cockroach-tq3.aws-us-east-1.cockroachlabs.cloud --port=26257 --user=master --database=defaultdb'
+alias cockroach_prod='PGPASSWORD="UM='\''a{KfSnIwqdl<L0KAD" PGSSLMODE=verify-full PGSSLROOTCERT="$HOME/Library/CockroachCloud/certs/8c251dc5-8aa8-40a8-8d08-214f01a4e1ed/prod-cockroach-ca.crt" cockroach sql --host=prod-cockroach-tqb.aws-us-east-1.cockroachlabs.cloud --port=26257 --user=master --database=defaultdb'
+alias cursor_history='ls -dt ~/Library/Application\ Support/Cursor/User/workspaceStorage'
+alias ruff_check='uv tool run ruff check .'

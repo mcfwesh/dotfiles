@@ -110,3 +110,20 @@ export TASKROOT=/Users/nathan.ojieabu/Documents/repos/task-notes
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+export PCT_TFPATH=/opt/homebrew/bin/terraform
+export PATH="$PATH:/Users/nathan.ojieabu/.local/bin/pipenv"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc'; fi
+export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
+export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
+
+export ATLASSIAN_SITE_URL="https://benevity.atlassian.net"
+[ -f "${HOME}/.secrets" ] && source "${HOME}/.secrets"
+
+### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
+export PATH="/Users/nathan.ojieabu/.rd/bin:$PATH"
+### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)

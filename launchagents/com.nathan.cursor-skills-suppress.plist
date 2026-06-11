@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nathan.cursor-skills-suppress</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/suppress-skills.sh &lt; /dev/null</string>
+  </array>
+
+  <!-- Run the moment the denylist (or the script) is saved -->
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/suppress-skills.txt</string>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/suppress-skills.sh</string>
+  </array>
+
+  <!-- Also apply once at login -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/nathan.ojieabu/Library/Logs/cursor-skills-suppress.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/nathan.ojieabu/Library/Logs/cursor-skills-suppress.err.log</string>
+</dict>
+</plist>

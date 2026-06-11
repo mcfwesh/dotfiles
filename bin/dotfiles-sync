@@ -1,0 +1,22 @@
+#!/usr/bin/env zsh
+# Push latest dotfiles repo changes to mcfwesh/dotfiles
+set -e
+
+REPO="${HOME}/external-repos/dotfiles"
+
+cd "${REPO}"
+
+if [[ -z $(git status --porcelain) ]]; then
+  echo "dotfiles-sync: nothing changed, already up to date."
+  exit 0
+fi
+
+echo "dotfiles-sync: staging changes..."
+git add -A
+
+CHANGED=$(git diff --cached --stat | tail -1)
+git commit -m "chore: sync dotfiles — $(date '+%Y-%m-%d %H:%M')"
+echo "dotfiles-sync: committed (${CHANGED})"
+
+git push origin main
+echo "dotfiles-sync: pushed to mcfwesh/dotfiles ✓"

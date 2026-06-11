@@ -1,3 +1,10 @@
+
+# Local machine bootstrap paths
+export PATH="$HOME/.local/bin:$PATH"
+if [ -x "/opt/homebrew/bin/brew" ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
 # Set the root for pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 
@@ -123,6 +130,47 @@ export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 
 export ATLASSIAN_SITE_URL="https://benevity.atlassian.net"
 [ -f "${HOME}/.secrets" ] && source "${HOME}/.secrets"
+
+alias cursor-mcp-env-sync="${HOME}/.local/bin/cursor-mcp-env-sync"
+alias claude-mcp-env-sync="${HOME}/.local/bin/cursor-mcp-env-sync"
+
+cursor-mcp-env-add() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: cursor-mcp-env-add ENV_VAR_NAME"
+        return 1
+    fi
+
+    local vars_file="${HOME}/.cursor/mcp-env-vars"
+    mkdir -p "${vars_file:h}"
+
+    if grep -qx "$1" "${vars_file}" 2>/dev/null; then
+        echo "$1 is already listed in ${vars_file}"
+    else
+        echo "$1" >> "${vars_file}"
+        echo "Added $1 to ${vars_file}"
+    fi
+
+    "${HOME}/.local/bin/cursor-mcp-env-sync"
+}
+
+claude-mcp-env-add() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: claude-mcp-env-add ENV_VAR_NAME"
+        return 1
+    fi
+
+    local vars_file="${HOME}/.claude/mcp-env-vars"
+    mkdir -p "${vars_file:h}"
+
+    if grep -qx "$1" "${vars_file}" 2>/dev/null; then
+        echo "$1 is already listed in ${vars_file}"
+    else
+        echo "$1" >> "${vars_file}"
+        echo "Added $1 to ${vars_file}"
+    fi
+
+    "${HOME}/.local/bin/cursor-mcp-env-sync"
+}
 
 ### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
 export PATH="/Users/nathan.ojieabu/.rd/bin:$PATH"

@@ -1,0 +1,22 @@
+#!/usr/bin/env zsh
+# Push latest ~/.agents (installed skills) to mcfwesh/agents
+set -e
+
+AGENTS_DIR="${HOME:-/Users/nathan.ojieabu}/.agents"
+
+cd "$AGENTS_DIR"
+
+if [[ -z $(git status --porcelain) ]]; then
+  echo "agents-sync: nothing changed, already up to date."
+  exit 0
+fi
+
+echo "agents-sync: staging changes..."
+git add -A
+
+CHANGED=$(git diff --cached --stat | tail -1)
+git commit -m "chore: sync agents — $(date '+%Y-%m-%d %H:%M')"
+echo "agents-sync: committed ($CHANGED)"
+
+git push origin main
+echo "agents-sync: pushed to mcfwesh/agents-config ✓"

@@ -1,0 +1,38 @@
+#!/bin/zsh
+set -eu
+
+secrets_file="${HOME}/.secrets"
+
+if [[ -f "${secrets_file}" ]]; then
+  set -a
+  source "${secrets_file}"
+  set +a
+fi
+
+vars_files=(
+  "${HOME}/.cursor/mcp-env-vars"
+  "${HOME}/.claude/mcp-env-vars"
+)
+
+for vars_file in "${vars_files[@]}"; do
+  [[ -f "${vars_file}" ]] || continue
+
+  while IFS= read -r raw_var || [[ -n "${raw_var}" ]]; do
+    var="${raw_var%%#*}"
+    var="${var//[[:space:]]/}"
+
+    [[ -z "${var}" ]] && continue
+    [[ "${var}" == [A-Za-z_][A-Za-z0-9_]* ]] || {
+      print -u2 "Skipping invalid variable name: ${raw_var}"
+      continue
+    }
+
+    value="${(P)var:-}"
+    if [[ -n "${value}" ]]; then
+      launchctl setenv "${var}" "${value}"
+      print "set ${var} (from ${vars_file:t:h}/${vars_file:t})"
+    else
+      print -u2 "Skipping ${var}: no value found"
+    fi
+  done < "${vars_file}"
+done

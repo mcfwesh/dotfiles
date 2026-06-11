@@ -1,0 +1,20 @@
+[user]
+	name = Nathan Ojieabu
+	email = nathan.ojieabu@benevity.com
+
+[includeIf "gitdir:~/Documents/personal/"]
+	path = ~/.gitconfig-personal
+[url "ssh://git@github.com/benevity-internal/"]
+	insteadOf = ssh://git@stash.benevity.org:7999/aws-ops/
+	insteadOf = ssh://git@stash.benevity.org:7999/cdp/
+	insteadOf = ssh://git@stash.benevity.org:7999/cdpt/
+	insteadOf = ssh://git@stash.benevity.org:7999/eapi/
+	insteadOf = ssh://git@stash.benevity.org:7999/integ/
+	insteadOf = ssh://git@stash.benevity.org:7999/sear/
+	insteadOf = ssh://git@stash.benevity.org:7999/terr/
+[commit]
+	template = ~/.gitmessage
+[core]
+	excludesfile = ~/.gitignore_global
+[init]
+	templateDir = ~/.git-template

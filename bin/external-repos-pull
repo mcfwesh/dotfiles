@@ -1,0 +1,33 @@
+#!/usr/bin/env zsh
+# Pull latest from all repos in ~/external-repos and refresh installed Cursor plugins.
+setopt NULL_GLOB
+
+HOME_DIR="${HOME:-/Users/nathan.ojieabu}"
+REPOS_DIR="$HOME_DIR/external-repos"
+SUPERPOWERS_CURSOR_CACHE="$HOME_DIR/.cursor/plugins/cache/cursor-public/superpowers/b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
+
+if [[ ! -d "$REPOS_DIR" ]]; then
+  echo "external-repos-pull: $REPOS_DIR does not exist, skipping"
+  exit 0
+fi
+
+for repo in "$REPOS_DIR"/*; do
+  [[ -d "$repo/.git" ]] || continue
+
+  name=$(basename "$repo")
+  echo "external-repos-pull: pulling $name..."
+  git -C "$repo" pull --ff-only --quiet 2>&1 \
+    && echo "external-repos-pull: $name OK" \
+    || echo "external-repos-pull: $name SKIPPED (already up-to-date or conflict)"
+
+  if [[ "$name" == "superpowers" ]]; then
+    echo "external-repos-pull: refreshing installed Cursor Superpowers plugin..."
+    mkdir -p "$SUPERPOWERS_CURSOR_CACHE"
+    rsync -a --delete --exclude ".git" --exclude ".git/" "$repo/" "$SUPERPOWERS_CURSOR_CACHE/"
+    rm -rf "$SUPERPOWERS_CURSOR_CACHE/.git"
+    mkdir -p "$SUPERPOWERS_CURSOR_CACHE/agents" "$SUPERPOWERS_CURSOR_CACHE/commands"
+    echo "external-repos-pull: Cursor Superpowers plugin refreshed"
+  fi
+done
+
+echo "external-repos-pull: done"

@@ -1,0 +1,28 @@
+#!/usr/bin/env zsh
+# Push latest ~/.cursor config changes to mcfwesh/cursor-config
+set -e
+
+CURSOR_DIR="$HOME/.cursor"
+EXTERNAL_REPOS_PULL="$HOME/.local/bin/external-repos-pull"
+
+# Refresh plugin caches from ~/external-repos before backing up plugins/cache/
+if [[ -x "$EXTERNAL_REPOS_PULL" ]]; then
+  "$EXTERNAL_REPOS_PULL"
+fi
+
+cd "$CURSOR_DIR"
+
+if [[ -z $(git status --porcelain) ]]; then
+  echo "cursor-config: nothing changed, already up to date."
+  exit 0
+fi
+
+echo "cursor-config: staging changes..."
+git add -A
+
+CHANGED=$(git diff --cached --stat | tail -1)
+git commit -m "chore: sync cursor config — $(date '+%Y-%m-%d %H:%M')"
+echo "cursor-config: committed ($CHANGED)"
+
+git push origin main
+echo "cursor-config: pushed to mcfwesh/cursor-config ✓"

@@ -1,9 +1,11 @@
 #!/usr/bin/env zsh
-# Pull latest from all repos in ~/external-repos and refresh installed Cursor plugins.
+# Pull latest from all repos in ~/external-repos and pin Cursor Superpowers to that copy.
 setopt NULL_GLOB
+set -euo pipefail
 
 HOME_DIR="${HOME:-/Users/nathan.ojieabu}"
 REPOS_DIR="$HOME_DIR/external-repos"
+SUPERPOWERS_REPO="$REPOS_DIR/superpowers"
 SUPERPOWERS_CURSOR_CACHE="$HOME_DIR/.cursor/plugins/cache/cursor-public/superpowers/b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
 
 if [[ ! -d "$REPOS_DIR" ]]; then
@@ -11,23 +13,49 @@ if [[ ! -d "$REPOS_DIR" ]]; then
   exit 0
 fi
 
+ensure_superpowers_symlink() {
+  if [[ ! -d "$SUPERPOWERS_REPO/.git" ]]; then
+    echo "external-repos-pull: superpowers repo missing at $SUPERPOWERS_REPO" >&2
+    return 1
+  fi
+
+  if [[ -L "$SUPERPOWERS_CURSOR_CACHE" && "$(readlink "$SUPERPOWERS_CURSOR_CACHE")" == "$SUPERPOWERS_REPO" ]]; then
+    echo "external-repos-pull: superpowers symlink active"
+    return 0
+  fi
+
+  if pgrep -xq Cursor; then
+    echo "external-repos-pull: WARNING Cursor is running while replacing cache with symlink"
+  fi
+
+  mkdir -p "${SUPERPOWERS_CURSOR_CACHE:h}"
+  rm -rf "$SUPERPOWERS_CURSOR_CACHE"
+  ln -s "$SUPERPOWERS_REPO" "$SUPERPOWERS_CURSOR_CACHE"
+  echo "external-repos-pull: superpowers cache symlinked -> $SUPERPOWERS_REPO"
+}
+
+refresh_superpowers_repo() {
+  echo "external-repos-pull: pulling superpowers..."
+  git -C "$SUPERPOWERS_REPO" fetch origin --quiet
+  git -C "$SUPERPOWERS_REPO" reset --hard origin/main --quiet
+  echo "external-repos-pull: superpowers OK ($(rg '"version"' "$SUPERPOWERS_REPO/.cursor-plugin/plugin.json" | head -1))"
+}
+
 for repo in "$REPOS_DIR"/*; do
   [[ -d "$repo/.git" ]] || continue
 
   name=$(basename "$repo")
+
+  if [[ "$name" == "superpowers" ]]; then
+    refresh_superpowers_repo
+    ensure_superpowers_symlink
+    continue
+  fi
+
   echo "external-repos-pull: pulling $name..."
   git -C "$repo" pull --ff-only --quiet 2>&1 \
     && echo "external-repos-pull: $name OK" \
     || echo "external-repos-pull: $name SKIPPED (already up-to-date or conflict)"
-
-  if [[ "$name" == "superpowers" ]]; then
-    echo "external-repos-pull: refreshing installed Cursor Superpowers plugin..."
-    mkdir -p "$SUPERPOWERS_CURSOR_CACHE"
-    rsync -a --delete --exclude ".git" --exclude ".git/" "$repo/" "$SUPERPOWERS_CURSOR_CACHE/"
-    rm -rf "$SUPERPOWERS_CURSOR_CACHE/.git"
-    mkdir -p "$SUPERPOWERS_CURSOR_CACHE/agents" "$SUPERPOWERS_CURSOR_CACHE/commands"
-    echo "external-repos-pull: Cursor Superpowers plugin refreshed"
-  fi
 done
 
 echo "external-repos-pull: done"

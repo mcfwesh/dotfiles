@@ -1,0 +1,36 @@
+#!/usr/bin/env zsh
+# Pin Superpowers before the first Cursor session after login, and again after Cursor quits.
+set -euo pipefail
+
+PULL="${HOME}/.local/bin/external-repos-pull"
+POLL_SECONDS=5
+
+if [[ ! -x "$PULL" ]]; then
+  echo "cursor-superpowers-pin-watch: missing $PULL" >&2
+  exit 1
+fi
+
+pin_superpowers() {
+  echo "cursor-superpowers-pin-watch: pinning superpowers ($(date '+%Y-%m-%d %H:%M:%S'))..."
+  "$PULL"
+}
+
+cursor_running() {
+  pgrep -xq Cursor
+}
+
+# Before the first Cursor session this login (and after any previous quit).
+pin_superpowers
+
+while true; do
+  while cursor_running; do
+    sleep "$POLL_SECONDS"
+  done
+
+  # Cursor is closed — keep cache/repo pinned until it opens again.
+  pin_superpowers
+
+  while ! cursor_running; do
+    sleep "$POLL_SECONDS"
+  done
+done

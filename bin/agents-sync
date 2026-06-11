@@ -1,10 +1,17 @@
 #!/usr/bin/env zsh
-# Push latest ~/.agents (installed skills) to mcfwesh/agents
+# Pull latest global skills (npx skills), then push ~/.agents to mcfwesh/agents-config
 set -e
 
 AGENTS_DIR="${HOME:-/Users/nathan.ojieabu}/.agents"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 cd "$AGENTS_DIR"
+
+echo "agents-sync: checking for skill updates (npx skills update -g -y)..."
+if ! npx skills update -g -y; then
+  echo "agents-sync: skill update failed" >&2
+  exit 1
+fi
 
 if [[ -z $(git status --porcelain) ]]; then
   echo "agents-sync: nothing changed, already up to date."

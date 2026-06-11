@@ -11,16 +11,20 @@ SKILLS_DIR="$AGENTS_DIR/skills"
 # Skills to suppress from auto-invocation.
 # Kept installed for manual use but won't bloat context automatically.
 DISABLE_AUTO_INVOKE=(
+  # upstream-shipped with the flag — preserve their intent
+  zoom-out
+  teach
+  ubiquitous-language
+  setup-matt-pocock-skills
+
+  # locally suppressed — available manually, won't bloat context
   edit-article
   writing-beats
   writing-fragments
   writing-shape
   migrate-to-shoehorn
   scaffold-exercises
-  ubiquitous-language
-  teach
   obsidian-vault
-  setup-matt-pocock-skills
   request-refactor-plan
   improve-codebase-architecture
   tdd

@@ -1,0 +1,49 @@
+#!/usr/bin/env zsh
+# Re-apply local overrides to upstream-managed skills after npx skills update.
+# Skills listed here keep their upstream updates but won't auto-invoke.
+# Edit this list freely — add/remove skill names as your needs change.
+
+AGENTS_DIR="${HOME:-/Users/nathan.ojieabu}/.agents"
+SKILLS_DIR="$AGENTS_DIR/skills"
+
+# Skills to suppress from auto-invocation (disable-model-invocation: true).
+# These are kept installed for manual use but won't bloat context automatically.
+DISABLE_AUTO_INVOKE=(
+  edit-article
+  writing-beats
+  writing-fragments
+  writing-shape
+  humanizer
+  migrate-to-shoehorn
+  scaffold-exercises
+  ubiquitous-language
+  teach
+  obsidian-vault
+  setup-matt-pocock-skills
+  request-refactor-plan
+  improve-codebase-architecture
+  tdd
+)
+
+patch_disable_model_invocation() {
+  local skill="$1"
+  local file="$SKILLS_DIR/$skill/SKILL.md"
+
+  [[ -f "$file" ]] || return 0
+
+  if grep -q '^disable-model-invocation:' "$file"; then
+    return 0  # already set, nothing to do
+  fi
+
+  # Insert after the opening --- on line 1
+  local tmp=$(mktemp)
+  awk 'NR==1{print; print "disable-model-invocation: true"; next}1' "$file" > "$tmp"
+  mv "$tmp" "$file"
+  echo "agents-patch-skills: patched $skill"
+}
+
+for skill in "${DISABLE_AUTO_INVOKE[@]}"; do
+  patch_disable_model_invocation "$skill"
+done
+
+echo "agents-patch-skills: done"

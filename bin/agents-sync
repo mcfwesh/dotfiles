@@ -13,6 +13,9 @@ if ! npx skills update -g -y; then
   exit 1
 fi
 
+echo "agents-sync: applying local skill patches..."
+"${HOME}/.local/bin/agents-patch-skills"
+
 if [[ -z $(git status --porcelain) ]]; then
   echo "agents-sync: nothing changed, already up to date."
   exit 0

@@ -3,9 +3,19 @@
 set -e
 
 AGENTS_DIR="${HOME:-/Users/nathan.ojieabu}/.agents"
+SKILLS_DIR="$AGENTS_DIR/skills"
 export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 cd "$AGENTS_DIR"
+
+# Snapshot which skills have disable-model-invocation: true before updating.
+# This preserves any flag you've set manually — no list to maintain.
+typeset -a suppressed=()
+for skill_dir in "$SKILLS_DIR"/*/; do
+  file="$skill_dir/SKILL.md"
+  [[ -f "$file" ]] && grep -q '^disable-model-invocation:' "$file" \
+    && suppressed+=($(basename "$skill_dir"))
+done
 
 echo "agents-sync: checking for skill updates (npx skills update -g -y)..."
 if ! npx skills update -g -y; then
@@ -13,8 +23,17 @@ if ! npx skills update -g -y; then
   exit 1
 fi
 
-echo "agents-sync: applying local skill patches..."
-"${HOME}/.local/bin/agents-patch-skills"
+# Restore flags wiped by upstream updates.
+for skill in "${suppressed[@]}"; do
+  file="$SKILLS_DIR/$skill/SKILL.md"
+  [[ -f "$file" ]] || continue
+  if ! grep -q '^disable-model-invocation:' "$file"; then
+    tmp=$(mktemp)
+    awk 'NR==1{print; print "disable-model-invocation: true"; next}1' "$file" > "$tmp"
+    mv "$tmp" "$file"
+    echo "agents-sync: restored disable-model-invocation on $skill"
+  fi
+done
 
 if [[ -z $(git status --porcelain) ]]; then
   echo "agents-sync: nothing changed, already up to date."

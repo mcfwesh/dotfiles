@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nathan.cursor-plugin-skills-suppress</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/suppress-plugin-skills.sh &lt; /dev/null</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/plugin-skill-suppress.txt</string>
+    <string>/Users/nathan.ojieabu/.cursor/hooks/suppress-plugin-skills.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/nathan.ojieabu/Library/Logs/cursor-plugin-skills-suppress.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/nathan.ojieabu/Library/Logs/cursor-plugin-skills-suppress.err.log</string>
+</dict>
+</plist>

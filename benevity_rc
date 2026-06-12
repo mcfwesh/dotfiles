@@ -1003,3 +1003,4 @@ alias cockroach_staging='PGPASSWORD=$COCKROACH_STAGING_PASSWORD PGSSLMODE=verify
 alias cockroach_prod='PGPASSWORD=$COCKROACH_PROD_PASSWORD PGSSLMODE=verify-full PGSSLROOTCERT="$HOME/Library/CockroachCloud/certs/8c251dc5-8aa8-40a8-8d08-214f01a4e1ed/prod-cockroach-ca.crt" cockroach sql --host=prod-cockroach-tqb.aws-us-east-1.cockroachlabs.cloud --port=26257 --user=master --database=defaultdb'
 alias cursor_history='ls -dt ~/Library/Application\ Support/Cursor/User/workspaceStorage'
 alias ruff_check='uv tool run ruff check .'
+alias aws_config='cat ~/.aws/config'

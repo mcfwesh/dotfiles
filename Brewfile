@@ -67,10 +67,10 @@ brew "hashicorp/tap/terraform", trusted: true
 cask "docker-desktop"
 # Terminal emulator as alternative to Apple's Terminal app
 cask "iterm2"
-# AWS SSM Session Manager plugin (for `aws ssm start-session`)
-cask "session-manager-plugin"
 # StrongDM client
 cask "sdm"
+# Plugin for AWS CLI to start and end sessions that connect to managed instances
+cask "session-manager-plugin"
 # Pluggable Terraform linter
 cask "terraform-linters/tap/tflint", trusted: true
 # Open-source code editor

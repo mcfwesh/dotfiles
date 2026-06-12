@@ -1,10 +1,30 @@
 #!/usr/bin/env zsh
-# Push latest dotfiles repo changes to mcfwesh/dotfiles
+# Refresh Brewfile when Homebrew inventory changes, then push dotfiles.
 set -e
 
 REPO="${HOME}/external-repos/dotfiles"
+BREWFILE="${REPO}/Brewfile"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
 cd "${REPO}"
+
+if command -v brew >/dev/null 2>&1; then
+  TMP_BREWFILE=$(mktemp)
+  trap 'rm -f "$TMP_BREWFILE"' EXIT
+
+  brew bundle dump --file="$TMP_BREWFILE" --force >/dev/null
+
+  if [[ ! -f "$BREWFILE" ]]; then
+    mv "$TMP_BREWFILE" "$BREWFILE"
+    echo "dotfiles-sync: created Brewfile from Homebrew inventory."
+  elif ! cmp -s "$TMP_BREWFILE" "$BREWFILE"; then
+    mv "$TMP_BREWFILE" "$BREWFILE"
+    echo "dotfiles-sync: refreshed Brewfile from Homebrew inventory."
+  else
+    rm -f "$TMP_BREWFILE"
+    echo "dotfiles-sync: Brewfile already matches Homebrew inventory."
+  fi
+fi
 
 if [[ -z $(git status --porcelain) ]]; then
   echo "dotfiles-sync: nothing changed, already up to date."

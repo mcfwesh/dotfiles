@@ -134,6 +134,46 @@ export ATLASSIAN_SITE_URL="https://benevity.atlassian.net"
 alias cursor-mcp-env-sync="${HOME}/.local/bin/cursor-mcp-env-sync"
 alias claude-mcp-env-sync="${HOME}/.local/bin/cursor-mcp-env-sync"
 
+cursor() {
+    local bin="${HOME}/.local/bin/cursor"
+
+    case "${1:-}" in
+        -h|--help|-v|--version|-s|--status|tunnel|agent)
+            "$bin" "$@"
+            return
+            ;;
+    esac
+
+    for arg in "$@"; do
+        case "$arg" in
+            --list-extensions|--install-extension|--uninstall-extension|--update-extensions|--add-mcp)
+                "$bin" "$@"
+                return
+                ;;
+        esac
+    done
+
+    local args=()
+    local has_classic=0 has_glass=0 has_chat=0
+    local has_new=0 has_reuse=0 has_add=0
+
+    for arg in "$@"; do
+        case "$arg" in
+            --classic) has_classic=1 ;;
+            --glass) has_glass=1 ;;
+            --chat) has_chat=1 ;;
+            -n|--new-window) has_new=1 ;;
+            -r|--reuse-window) has_reuse=1 ;;
+            -a|--add) has_add=1 ;;
+        esac
+    done
+
+    (( !has_new && !has_reuse && !has_add )) && args+=(-n)
+    (( !has_classic && !has_glass && !has_chat )) && args+=(--classic)
+
+    "$bin" "${args[@]}" "$@"
+}
+
 cursor-mcp-env-add() {
     if [[ -z "$1" ]]; then
         echo "Usage: cursor-mcp-env-add ENV_VAR_NAME"

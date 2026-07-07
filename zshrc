@@ -1,4 +1,3 @@
-
 # Local machine bootstrap paths
 export PATH="$HOME/.local/bin:$PATH"
 if [ -x "/opt/homebrew/bin/brew" ]; then

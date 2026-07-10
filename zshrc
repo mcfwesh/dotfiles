@@ -214,3 +214,11 @@ claude-mcp-env-add() {
 ### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
 export PATH="/Users/nathan.ojieabu/.rd/bin:$PATH"
 ### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
+
+# Rancher Desktop exposes Docker at ~/.rd/docker.sock, not ~/.docker/run/docker.sock.
+# pre-commit terraform-docs-docker and other Docker CLI tools need DOCKER_HOST set.
+_rancher_docker_sock="${HOME}/.rd/docker.sock"
+if [[ -S "${_rancher_docker_sock}" ]]; then
+  export DOCKER_HOST="unix://${_rancher_docker_sock}"
+fi
+unset _rancher_docker_sock

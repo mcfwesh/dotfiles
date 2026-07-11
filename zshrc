@@ -222,3 +222,5 @@ if [[ -S "${_rancher_docker_sock}" ]]; then
   export DOCKER_HOST="unix://${_rancher_docker_sock}"
 fi
 unset _rancher_docker_sock
+
+alias rm='trash'

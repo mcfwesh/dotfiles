@@ -578,102 +578,35 @@ function set_colors() {
   fi
 
   case $1 in
-    benevity_live_prod)
+    benevity_live_prod|benevity_shared_prod|benevity_streams_prod|benevity_prod_versaic|benevity_shared_versaic|benevity_cdp_prod|benevity_prod_chaordix)
       _set_colors red
       ;;
-    benevity_live_preprod)
+    benevity_live_preprod|benevity_staging_uat|benevity_product_dev|benevity_product_poc|benevity_product_qa|benevity_shared_qa|benevity_sre_qa|benevity_streams_pre_prod|benevity_streams_uat|benevity_grantsdev_shared|benevity_devtest_versaic|benevity_poc_versaic|benevity_prodtest_versaic|benevity_sandboxtest_versaic|benevity_stagetest_versaic|benevity_preprod_prodsupport|benevity_engineering_qa|benevity_legacy_qa|benevity_dev_chaordix|benevity_qa_chaordix)
       _set_colors green
       ;;
-    benevity_live_staging)
-      _set_colors purple
-      ;;
-    benevity_staging_uat)
-      _set_colors green
-      ;;
-    benevity_live_dr)
-      _set_colors purple
-      ;;
-    benevity_core_pipeline)
-      _set_colors purple
-      ;;
-    benevity_master)
-      _set_colors purple
-      ;;
-    benevity_mgmt_iam)
-      _set_colors purple
-      ;;
-    benevity_mgmt_security)
-      _set_colors purple
-      ;;
-    benevity_product_dev)
-      _set_colors green
-      ;;
-    benevity_product_devtools)
-      _set_colors purple
-      ;;
-    benevity_product_poc)
-      _set_colors green
-      ;;
-    benevity_product_qa)
-      _set_colors green
-      ;;
-    benevity_shared_prod)
-      _set_colors red
-      ;;
-    benevity_shared_qa)
-      _set_colors green
-      ;;
-    benevity_sre_qa)
-      _set_colors green
-      ;;
-    benevity_streams_prod)
-      _set_colors red
-      ;;
-    benevity_streams_pre_prod)
-      _set_colors green
-      ;;
-    benevity_streams_uat)
-      _set_colors green
-      ;;
-    benevity_grantsdev_shared)
-      _set_colors green
-      ;;
-    benevity_dev_versaic)
-      _set_colors purple
-      ;;
-    benevity_devtest_versaic)
-      _set_colors green
-      ;;
-    benevity_poc_versaic)
-      _set_colors green
-      ;;
-    benevity_prod_versaic)
-      _set_colors red
-      ;;
-    benevity_prodtest_versaic)
-      _set_colors green
-      ;;
-    benevity_sandbox_versaic)
-      _set_colors purple
-      ;;
-    benevity_sandboxtest_versaic)
-      _set_colors green
-      ;;
-    benevity_shared_versaic)
-      _set_colors red
-      ;;
-    benevity_stage_versaic)
-      _set_colors purple
-      ;;
-    benevity_stagetest_versaic)
-      _set_colors green
-      ;;
-    benevity_uat_versaic)
+    benevity_live_staging|benevity_live_dr|benevity_core_pipeline|benevity_master|benevity_mgmt_iam|benevity_mgmt_security|benevity_product_devtools|benevity_dev_versaic|benevity_sandbox_versaic|benevity_stage_versaic|benevity_uat_versaic|benevity_cdp_staging|benevity_core_translations)
       _set_colors purple
       ;;
     *)
-      echo "Warning: $1 does not have a defined color scheme, using yellow!"
-      _set_colors yellow
+      # Pattern fallback for unlisted profiles (never neon yellow)
+      case $1 in
+        *preprod*|prodsupport)
+          _set_colors green
+          ;;
+        *prod*)
+          _set_colors red
+          ;;
+        *staging*|*stage*|*uat*|*dr*|*sandbox*)
+          _set_colors purple
+          ;;
+        *dev*|*qa*|*test*|*poc*)
+          _set_colors green
+          ;;
+        *)
+          echo "Warning: $1 does not have a defined color scheme, using purple"
+          _set_colors purple
+          ;;
+      esac
       ;;
   esac
 }
@@ -697,8 +630,10 @@ function _set_colors() {
       set_tab_color 120 30 120
       ;;
     yellow)
-      set_bg_color 255 255 0
-      set_tab_color 255 255 0
+      # Dark amber — unused by set_colors fallback; kept for manual calls
+      set_bg_color 40 40 0
+      set_tab_color 180 180 0
+      ;;
   esac
 }
 
@@ -1004,3 +939,4 @@ alias cockroach_prod='PGPASSWORD=$COCKROACH_PROD_PASSWORD PGSSLMODE=verify-full 
 alias cursor_history='ls -dt ~/Library/Application\ Support/Cursor/User/workspaceStorage'
 alias ruff_check='uv tool run ruff check .'
 alias aws_config='cat ~/.aws/config'
+alias secure_credentials='ansible "*secure[0]" -m shell -a "hostname; cd /var/www/secure/ && vendor/bin/drush uli" -b'

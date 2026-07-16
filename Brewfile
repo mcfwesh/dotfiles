@@ -65,6 +65,8 @@ brew "watch"
 brew "yarn"
 # Terraform
 brew "hashicorp/tap/terraform", trusted: true
+# Universal database tool and SQL client
+cask "dbeaver-community"
 # App to build and share containerised applications and microservices
 cask "docker-desktop"
 # Terminal emulator as alternative to Apple's Terminal app

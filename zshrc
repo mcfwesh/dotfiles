@@ -1,4 +1,15 @@
 # Local machine bootstrap paths
+# Cursor agent/integrated shells sometimes inherit a PATH with no /usr/bin,
+# or wipe PATH mid-session when restoring shell state. Later prepends (brew,
+# pyenv, etc.) never restore /usr/bin, so curl/sed/clear vanish. Re-seed when
+# missing at startup and again before each prompt/command.
+_ensure_system_path() {
+  case ":${PATH}:" in
+    *:/usr/bin:*) ;;
+    *) export PATH="/usr/bin:/bin:/usr/sbin:/sbin${PATH:+:$PATH}" ;;
+  esac
+}
+_ensure_system_path
 export PATH="$HOME/.local/bin:$PATH"
 if [ -x "/opt/homebrew/bin/brew" ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
@@ -29,7 +40,7 @@ source ~/.benevity_rc
 
 # Git prompt helpers
 parse_git_branch() {
-    git branch 2> /dev/null | sed -n -e 's/^\* \(.*\)/[\1]/p'
+    git branch 2> /dev/null | /usr/bin/sed -n -e 's/^\* \(.*\)/[\1]/p'
 }
 
 parse_git_repo() {
@@ -69,6 +80,11 @@ COLOR_GIT="%F{yellow}"
 COLOR_DEF="%f"
 
 setopt PROMPT_SUBST
+
+# Catch mid-session PATH wipes (Cursor agent shell state restore).
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd _ensure_system_path
+add-zsh-hook preexec _ensure_system_path
 
 # Set the prompt structure
 PROMPT='${COLOR_DIR}%~ ${COLOR_GIT}$(parse_git_repo) - $(parse_git_branch)${COLOR_DEF} $ '

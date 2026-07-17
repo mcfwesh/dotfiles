@@ -36,6 +36,23 @@ alias devtools='aws ssm start-session --target i-0980e188de058576e --document-na
 # Ansible helper functions
 ############################################################
 
+_spark_ansible_guard() {
+  if [[ -z "$AWS_PROFILE" ]]; then
+    echo "AWS_PROFILE is unset. Run: aws-auth <profile>" >&2
+    return 1
+  fi
+
+  if [[ -n "$AWS_DEFAULT_PROFILE" && "$AWS_DEFAULT_PROFILE" != "$AWS_PROFILE" ]]; then
+    echo "AWS_PROFILE ($AWS_PROFILE) != AWS_DEFAULT_PROFILE ($AWS_DEFAULT_PROFILE). Run: aws-auth $AWS_PROFILE" >&2
+    return 1
+  fi
+
+  if [[ -n "$AWS_EB_PROFILE" && "$AWS_EB_PROFILE" != "$AWS_PROFILE" ]]; then
+    echo "AWS_PROFILE ($AWS_PROFILE) != AWS_EB_PROFILE ($AWS_EB_PROFILE). Run: aws-auth $AWS_PROFILE" >&2
+    return 1
+  fi
+}
+
 # Run a drush against a client
 #   Usage:
 #     spark-drush [client] [drush]
@@ -43,6 +60,8 @@ alias devtools='aws ssm start-session --target i-0980e188de058576e --document-na
 #   Example:
 #     spark-drush citi "vget company"
 spark-drush() {
+  _spark_ansible_guard || return $?
+
   client=$1
   drush=$2
 
@@ -57,6 +76,8 @@ spark-drush() {
 #     spark-uli citi
 #     spark-uli citi flastname@benevity.com
 spark-uli() {
+  _spark_ansible_guard || return $?
+
   client=$1
   email=$2
 

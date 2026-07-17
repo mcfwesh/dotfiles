@@ -46,7 +46,7 @@ spark-drush() {
   client=$1
   drush=$2
 
-  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN $drush warn=false" -b -f1
+  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN $drush" -b -f1
 }
 
 # Get a uli for a Spark client
@@ -60,7 +60,7 @@ spark-uli() {
   client=$1
   email=$2
 
-  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN uli $email warn=false" -b -f1
+  ansible "tag_Name_*_drupal_6_job" -m shell -a "/var/www/wpg_v6/vendor/bin/drush --root=/var/www/wpg_v6 -l $client.$AWS_DOMAIN uli $email" -b -f1
 }
 
 ##########################################################

@@ -65,6 +65,8 @@ brew "watch"
 brew "yarn"
 # Terraform
 brew "hashicorp/tap/terraform", trusted: true
+# Command-line interface for 1Password
+cask "1password-cli"
 # Universal database tool and SQL client
 cask "dbeaver-community"
 # App to build and share containerised applications and microservices

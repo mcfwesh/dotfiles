@@ -15,6 +15,11 @@ if [ -x "/opt/homebrew/bin/brew" ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 # Set the root for pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 
@@ -71,24 +76,14 @@ aws_profile_short () {
 	fi
 }
 
-# Load colors and set prompt
-autoload -U colors && colors
-
-# Defining some colors for the prompt
-COLOR_DIR="%F{blue}"
-COLOR_GIT="%F{yellow}"
-COLOR_DEF="%f"
-
-setopt PROMPT_SUBST
-
 # Catch mid-session PATH wipes (Cursor agent shell state restore).
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd _ensure_system_path
 add-zsh-hook preexec _ensure_system_path
 
-# Set the prompt structure
-PROMPT='${COLOR_DIR}%~ ${COLOR_GIT}$(parse_git_repo) - $(parse_git_branch)${COLOR_DEF} $ '
-RPROMPT='$(aws_profile_short)'
+# Powerlevel10k (config: ~/.p10k.zsh -> dotfiles/p10k.zsh)
+source "${HOMEBREW_PREFIX:-/opt/homebrew}/share/powerlevel10k/powerlevel10k.zsh-theme"
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # set_colors / _set_colors live in ~/.benevity_rc (sourced above)
 
@@ -206,3 +201,9 @@ fi
 unset _rancher_docker_sock
 
 alias rm='trash'
+
+# zsh plugins (syntax-highlighting must be last)
+[[ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] &&
+  source "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+[[ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] &&
+  source "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"

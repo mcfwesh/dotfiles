@@ -41,6 +41,8 @@ brew "node@22"
 brew "openjdk@17"
 # Execute binaries from Python packages in isolated environments
 brew "pipx"
+# Theme for zsh
+brew "powerlevel10k"
 # Framework for managing multi-language pre-commit hooks
 brew "pre-commit"
 # Password generator
@@ -65,6 +67,10 @@ brew "uv"
 brew "watch"
 # JavaScript package manager
 brew "yarn"
+# Fish-like fast/unobtrusive autosuggestions for zsh
+brew "zsh-autosuggestions"
+# Fish shell like syntax highlighting for zsh
+brew "zsh-syntax-highlighting"
 # Terraform
 brew "hashicorp/tap/terraform", trusted: true
 # Command-line interface for 1Password
@@ -73,6 +79,7 @@ cask "1password-cli"
 cask "dbeaver-community"
 # App to build and share containerised applications and microservices
 cask "docker-desktop"
+cask "font-meslo-lg-nerd-font"
 # Terminal emulator as alternative to Apple's Terminal app
 cask "iterm2"
 # StrongDM client

@@ -31,6 +31,8 @@ brew "jq"
 brew "maven"
 # Open source relational database management system
 brew "mysql-client"
+# Command-line interface for New Relic
+brew "newrelic-cli"
 # Open-source, cross-platform JavaScript runtime environment
 brew "node"
 # Open-source, cross-platform JavaScript runtime environment

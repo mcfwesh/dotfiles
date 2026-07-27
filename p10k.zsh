@@ -34,6 +34,7 @@
     # os_icon               # os identifier
     dir                     # current directory
     vcs                     # git status
+    aws                     # aws profile — left so narrow terminals keep it visible
     # prompt_char           # prompt symbol
   )
 
@@ -74,7 +75,7 @@
     kubecontext             # current kubernetes context (https://kubernetes.io/)
     terraform               # terraform workspace (https://www.terraform.io)
     # terraform_version     # terraform version (https://www.terraform.io)
-    aws                     # aws profile (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)
+    # aws                   # on left prompt — must not hide in narrow terminals
     aws_eb_env              # aws elastic beanstalk environment (https://aws.amazon.com/elasticbeanstalk/)
     azure                   # azure account name (https://docs.microsoft.com/en-us/cli/azure)
     gcloud                  # google cloud cli account and project (https://cloud.google.com/)
@@ -259,13 +260,15 @@
   # respectively.
   typeset -g POWERLEVEL9K_DIR_TRUNCATE_BEFORE_MARKER=false
   # Don't shorten this many last directory segments. They are anchors.
-  typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=1
+  # 2 = keep full names for leaf + parent (e.g. repos/scripts, not r/scripts).
+  typeset -g POWERLEVEL9K_SHORTEN_DIR_LENGTH=2
   # Shorten directory if it's longer than this even if there is space for it. The value can
   # be either absolute (e.g., '80') or a percentage of terminal width (e.g, '50%'). If empty,
   # directory will be shortened only when prompt doesn't fit or when other parameters demand it
   # (see POWERLEVEL9K_DIR_MIN_COMMAND_COLUMNS and POWERLEVEL9K_DIR_MIN_COMMAND_COLUMNS_PCT below).
   # If set to `0`, directory will always be shortened to its minimum length.
-  typeset -g POWERLEVEL9K_DIR_MAX_LENGTH=80
+  # Empty = only shorten when the prompt would not fit (avoids ~/r/scripts when there is room).
+  typeset -g POWERLEVEL9K_DIR_MAX_LENGTH=
   # When `dir` segment is on the last prompt line, try to shorten it enough to leave at least this
   # many columns for typing commands.
   typeset -g POWERLEVEL9K_DIR_MIN_COMMAND_COLUMNS=40
@@ -1341,7 +1344,9 @@
   typeset -g POWERLEVEL9K_AWS_STAGING_FOREGROUND=178
   typeset -g POWERLEVEL9K_AWS_DEV_FOREGROUND=70
   typeset -g POWERLEVEL9K_AWS_DEFAULT_FOREGROUND=39
-  # typeset -g POWERLEVEL9K_AWS_DEFAULT_VISUAL_IDENTIFIER_EXPANSION='⭐'
+  # No AWS "a" icon — profile name alone.
+  typeset -g POWERLEVEL9K_AWS_VISUAL_IDENTIFIER_EXPANSION=
+  typeset -g POWERLEVEL9K_AWS_{DEFAULT,PROD,STAGING,DEV}_VISUAL_IDENTIFIER_EXPANSION=
 
   # AWS segment format. The following parameters are available within the expansion.
   #

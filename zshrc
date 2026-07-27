@@ -11,6 +11,9 @@ _ensure_system_path() {
 }
 _ensure_system_path
 export PATH="$HOME/.local/bin:$PATH"
+# Powerlevel10k glyphs need UTF-8; Cursor/agent shells often start with LC_CTYPE=C.
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 if [ -x "/opt/homebrew/bin/brew" ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi

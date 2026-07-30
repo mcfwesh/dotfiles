@@ -92,6 +92,7 @@ cask "terraform-linters/tap/tflint", trusted: true
 cask "visual-studio-code"
 vscode "aaron-bond.better-comments"
 vscode "amazonwebservices.aws-toolkit-vscode"
+vscode "anthropic.claude-code"
 vscode "christian-kohler.npm-intellisense"
 vscode "christian-kohler.path-intellisense"
 vscode "coenraads.bracket-pair-colorizer-2"

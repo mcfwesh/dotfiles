@@ -1,24 +1,70 @@
 #!/usr/bin/env zsh
 # Push latest ~/.cursor config changes to mcfwesh/cursor-config
-set -e
+set -euo pipefail
 
 CURSOR_DIR="$HOME/.cursor"
 EXTERNAL_REPOS_PULL="$HOME/.local/bin/external-repos-pull"
+SUPERPOWERS_CACHE="plugins/cache/cursor-public/superpowers"
+SUPERPOWERS_GITLINK="${SUPERPOWERS_CACHE}/b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
+
+drop_superpowers_gitlink() {
+  # Pin watch replaces this cache with a symlink to ~/external-repos/superpowers.
+  # A tracked gitlink there makes `git status` exit 128, so sync falsely reports clean.
+  if git ls-files --error-unmatch "$SUPERPOWERS_GITLINK" >/dev/null 2>&1 \
+    || git ls-files -- "$SUPERPOWERS_CACHE" | grep -q .; then
+    echo "cursor-config: dropping tracked superpowers cache (pinned via symlink)"
+    git rm -r --cached --quiet --ignore-unmatch "$SUPERPOWERS_CACHE" || true
+  fi
+}
+
+push_if_ahead() {
+  local ahead
+  ahead="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+  if (( ahead > 0 )); then
+    echo "cursor-config: ${ahead} local commit(s) not on origin — pushing..."
+    git push origin main
+    echo "cursor-config: pushed to mcfwesh/cursor-config ✓"
+  fi
+}
 
 # Refresh plugin caches from ~/external-repos before backing up plugins/cache/
 if [[ -x "$EXTERNAL_REPOS_PULL" ]]; then
-  "$EXTERNAL_REPOS_PULL"
+  "$EXTERNAL_REPOS_PULL" || {
+    echo "cursor-config: warning: external-repos-pull failed (continuing)" >&2
+  }
 fi
 
 cd "$CURSOR_DIR"
 
-if [[ -z $(git status --porcelain) ]]; then
+drop_superpowers_gitlink
+
+status_err="$(mktemp)"
+trap 'rm -f "$status_err"' EXIT
+if ! status_out="$(git status --porcelain --ignore-submodules=all 2>"$status_err")"; then
+  echo "cursor-config: git status failed:" >&2
+  cat "$status_err" >&2
+  exit 1
+fi
+if [[ -s "$status_err" ]]; then
+  echo "cursor-config: git status warnings:" >&2
+  cat "$status_err" >&2
+fi
+
+if [[ -z "$status_out" ]]; then
   echo "cursor-config: nothing changed, already up to date."
+  push_if_ahead
   exit 0
 fi
 
 echo "cursor-config: staging changes..."
 git add -A
+drop_superpowers_gitlink
+
+if [[ -z "$(git diff --cached --name-only)" ]]; then
+  echo "cursor-config: nothing staged after filters."
+  push_if_ahead
+  exit 0
+fi
 
 CHANGED=$(git diff --cached --stat | tail -1)
 git commit -m "chore: sync cursor config — $(date '+%Y-%m-%d %H:%M')"

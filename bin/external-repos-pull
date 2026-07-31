@@ -38,7 +38,16 @@ refresh_superpowers_repo() {
   echo "external-repos-pull: pulling superpowers..."
   git -C "$SUPERPOWERS_REPO" fetch origin --quiet
   git -C "$SUPERPOWERS_REPO" reset --hard origin/main --quiet
-  echo "external-repos-pull: superpowers OK ($(rg '"version"' "$SUPERPOWERS_REPO/.cursor-plugin/plugin.json" | head -1))"
+
+  # launchd PATH is minimal; prefer rg when present, else grep.
+  local version_line=""
+  local plugin_json="$SUPERPOWERS_REPO/.cursor-plugin/plugin.json"
+  if command -v rg >/dev/null 2>&1; then
+    version_line="$(rg '"version"' "$plugin_json" | head -1)"
+  else
+    version_line="$(grep '"version"' "$plugin_json" | head -1)"
+  fi
+  echo "external-repos-pull: superpowers OK (${version_line})"
 }
 
 for repo in "$REPOS_DIR"/*; do

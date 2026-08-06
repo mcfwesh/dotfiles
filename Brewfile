@@ -75,6 +75,8 @@ brew "zsh-syntax-highlighting"
 brew "hashicorp/tap/terraform", trusted: true
 # Command-line interface for 1Password
 cask "1password-cli"
+# Enables developers to manage Confluent Cloud or Confluent Platform
+cask "confluent-cli"
 # Universal database tool and SQL client
 cask "dbeaver-community"
 # App to build and share containerised applications and microservices

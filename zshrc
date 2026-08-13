@@ -98,12 +98,6 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 export PCT_TFPATH=/opt/homebrew/bin/terraform
 export PATH="$PATH:/Users/nathan.ojieabu/.local/bin/pipenv"
-
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc'; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc'; fi
 export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
 export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
 
@@ -210,3 +204,9 @@ alias rm='trash'
   source "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 [[ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] &&
   source "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/nathan.ojieabu/google-cloud-sdk/completion.zsh.inc'; fi

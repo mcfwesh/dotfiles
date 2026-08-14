@@ -1,63 +1,23 @@
 #!/usr/bin/env zsh
-# Pull latest from all repos in ~/external-repos and pin Cursor Superpowers to that copy.
+# Pull latest from all repos in ~/external-repos.
 setopt NULL_GLOB
 set -euo pipefail
 
 HOME_DIR="${HOME:-/Users/nathan.ojieabu}"
 REPOS_DIR="$HOME_DIR/external-repos"
-SUPERPOWERS_REPO="$REPOS_DIR/superpowers"
-SUPERPOWERS_CURSOR_CACHE="$HOME_DIR/.cursor/plugins/cache/cursor-public/superpowers/b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
 
 if [[ ! -d "$REPOS_DIR" ]]; then
   echo "external-repos-pull: $REPOS_DIR does not exist, skipping"
   exit 0
 fi
 
-ensure_superpowers_symlink() {
-  if [[ ! -d "$SUPERPOWERS_REPO/.git" ]]; then
-    echo "external-repos-pull: superpowers repo missing at $SUPERPOWERS_REPO" >&2
-    return 1
-  fi
-
-  if [[ -L "$SUPERPOWERS_CURSOR_CACHE" && "$(readlink "$SUPERPOWERS_CURSOR_CACHE")" == "$SUPERPOWERS_REPO" ]]; then
-    echo "external-repos-pull: superpowers symlink active"
-    return 0
-  fi
-
-  if pgrep -xq Cursor; then
-    echo "external-repos-pull: WARNING Cursor is running while replacing cache with symlink"
-  fi
-
-  mkdir -p "${SUPERPOWERS_CURSOR_CACHE:h}"
-  rm -rf "$SUPERPOWERS_CURSOR_CACHE"
-  ln -s "$SUPERPOWERS_REPO" "$SUPERPOWERS_CURSOR_CACHE"
-  echo "external-repos-pull: superpowers cache symlinked -> $SUPERPOWERS_REPO"
-}
-
-refresh_superpowers_repo() {
-  echo "external-repos-pull: pulling superpowers..."
-  git -C "$SUPERPOWERS_REPO" fetch origin --quiet
-  git -C "$SUPERPOWERS_REPO" reset --hard origin/main --quiet
-
-  # launchd PATH is minimal; prefer rg when present, else grep.
-  local version_line=""
-  local plugin_json="$SUPERPOWERS_REPO/.cursor-plugin/plugin.json"
-  if command -v rg >/dev/null 2>&1; then
-    version_line="$(rg '"version"' "$plugin_json" | head -1)"
-  else
-    version_line="$(grep '"version"' "$plugin_json" | head -1)"
-  fi
-  echo "external-repos-pull: superpowers OK (${version_line})"
-}
-
 for repo in "$REPOS_DIR"/*; do
   [[ -d "$repo/.git" ]] || continue
 
   name=$(basename "$repo")
 
+  # Superpowers is uninstalled. Do not pull that clone.
   if [[ "$name" == "superpowers" ]]; then
-    refresh_superpowers_repo
-    ensure_superpowers_symlink
     continue
   fi
 

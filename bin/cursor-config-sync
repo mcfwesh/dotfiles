@@ -4,18 +4,6 @@ set -euo pipefail
 
 CURSOR_DIR="$HOME/.cursor"
 EXTERNAL_REPOS_PULL="$HOME/.local/bin/external-repos-pull"
-SUPERPOWERS_CACHE="plugins/cache/cursor-public/superpowers"
-SUPERPOWERS_GITLINK="${SUPERPOWERS_CACHE}/b7a8f76985f1e93e75dd2f2a3b424dc731bd9d37"
-
-drop_superpowers_gitlink() {
-  # Pin watch replaces this cache with a symlink to ~/external-repos/superpowers.
-  # A tracked gitlink there makes `git status` exit 128, so sync falsely reports clean.
-  if git ls-files --error-unmatch "$SUPERPOWERS_GITLINK" >/dev/null 2>&1 \
-    || git ls-files -- "$SUPERPOWERS_CACHE" | grep -q .; then
-    echo "cursor-config: dropping tracked superpowers cache (pinned via symlink)"
-    git rm -r --cached --quiet --ignore-unmatch "$SUPERPOWERS_CACHE" || true
-  fi
-}
 
 push_if_ahead() {
   local ahead
@@ -35,8 +23,6 @@ if [[ -x "$EXTERNAL_REPOS_PULL" ]]; then
 fi
 
 cd "$CURSOR_DIR"
-
-drop_superpowers_gitlink
 
 status_err="$(mktemp)"
 trap 'rm -f "$status_err"' EXIT
@@ -58,7 +44,6 @@ fi
 
 echo "cursor-config: staging changes..."
 git add -A
-drop_superpowers_gitlink
 
 if [[ -z "$(git diff --cached --name-only)" ]]; then
   echo "cursor-config: nothing staged after filters."

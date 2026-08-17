@@ -65,3 +65,5 @@ Desktop.ini
 /vendor/bundle
 .bin
 .dccache
+
+**/.claude/settings.local.json

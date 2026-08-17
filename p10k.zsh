@@ -32,9 +32,9 @@
   # The list of segments shown on the left. Fill it with the most important segments.
   typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(
     # os_icon               # os identifier
+    aws                     # first so Warp/narrow panes cannot clip it
     dir                     # current directory
     vcs                     # git status
-    aws                     # aws profile — left so narrow terminals keep it visible
     # prompt_char           # prompt symbol
   )
 
@@ -1304,8 +1304,8 @@
   # typeset -g POWERLEVEL9K_KUBECONTEXT_PREFIX='%248Fat '
 
   #[ aws: aws profile (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) ]#
-  # Always show aws when AWS_PROFILE is set (asp / aws-auth).
-  # typeset -g POWERLEVEL9K_AWS_SHOW_ON_COMMAND='aws|awless|terraform|pulumi|terragrunt'
+  # Empty = always show when AWS_PROFILE is set (asp / aws-auth). Do not comment this out.
+  typeset -g POWERLEVEL9K_AWS_SHOW_ON_COMMAND=
 
   # POWERLEVEL9K_AWS_CLASSES is an array with even number of elements. The first element
   # in each pair defines a pattern against which the current AWS profile gets matched.

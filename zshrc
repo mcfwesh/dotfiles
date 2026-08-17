@@ -50,6 +50,17 @@ source ~/.benevity_rc
 # iTerm tab/bg colors via AppleScript — not supported in Warp.
 [[ "$TERM_PROGRAM" == "WarpTerminal" ]] && export ENABLE_SET_BACKGROUND_COLOR=false
 
+# Warp Shell prompt (p10k) hides Warp's clickable path chip. cdf restores
+# "pick a Finder folder and cd" without dropping p10k.
+cdf() {
+  emulate -L zsh
+  local dir escaped
+  escaped=${PWD//\\/\\\\}
+  escaped=${escaped//\"/\\\"}
+  dir=$(osascript -e "POSIX path of (choose folder with prompt \"cd to folder\" default location POSIX file \"${escaped}\")" 2>/dev/null) || return
+  cd -- "${dir%/}"
+}
+
 # Git prompt helpers
 parse_git_branch() {
     git branch 2> /dev/null | /usr/bin/sed -n -e 's/^\* \(.*\)/[\1]/p'

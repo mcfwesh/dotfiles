@@ -943,22 +943,6 @@ jira-keys() {
 # </terminal-colors>
 ##############################################################################
 
-# cd via macOS Finder folder picker (Warp/iTerm/Cursor — replaces Warp's click-to-cd chip with p10k).
-cdf() {
-  local dir
-  dir=$(/usr/bin/osascript 2>/dev/null <<'APPLESCRIPT'
-    try
-      POSIX path of (choose folder with prompt "cd to:")
-    on error number -128
-    end try
-APPLESCRIPT
-) || return 0
-  [[ -n "$dir" ]] || return 0
-  cd -- "${dir%/}" || return
-  pwd -P
-}
-alias fcd=cdf
-
 ###Personal alias#####
 alias check='echo $AWS_PROFILE'
 alias tfreconfigure='terraform init -reconfigure && tflock'

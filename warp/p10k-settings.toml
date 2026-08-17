@@ -8,5 +8,4 @@ enforce_minimum_contrast = "never"
 
 [terminal.input]
 honor_ps1 = true
-# Universal input keeps the clickable directory chip above the input (with p10k in blocks).
-input_box_type_setting = "universal"
+input_box_type_setting = "classic"

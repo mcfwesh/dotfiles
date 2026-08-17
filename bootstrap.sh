@@ -46,4 +46,47 @@ for plist in "${REPO}"/launchagents/*.plist; do
   link_file "launchagents/${plist:t}" "${HOME_DIR}/Library/LaunchAgents/${plist:t}"
 done
 
+# Warp: honor shell PS1 (p10k) + MesloLGS NF per Warp/p10k docs.
+if [[ -f "${REPO}/warp/p10k-settings.toml" ]]; then
+  mkdir -p "${HOME_DIR}/.warp"
+  WARP_SETTINGS="${HOME_DIR}/.warp/settings.toml"
+  python3 - "${REPO}/warp/p10k-settings.toml" "${WARP_SETTINGS}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+fragment = Path(sys.argv[1]).read_text()
+target = Path(sys.argv[2])
+
+if target.exists():
+    text = target.read_text()
+else:
+    text = ""
+
+for section, body in re.findall(r"(\[[^\]]+\])\n((?:[^\[]|\n)*)", fragment):
+    if section in text:
+        for line in body.strip().splitlines():
+            key = line.split("=", 1)[0].strip()
+            if not key or key.startswith("#"):
+                continue
+            pattern = rf"^{re.escape(key)}\s*=.*$"
+            if re.search(pattern, text, flags=re.M):
+                text = re.sub(pattern, line.strip(), text, count=1, flags=re.M)
+            elif section in text:
+                text = re.sub(
+                    rf"({re.escape(section)}\n)",
+                    rf"\1{line.strip()}\n",
+                    text,
+                    count=1,
+                )
+    else:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += f"\n{section}\n{body.strip()}\n"
+
+target.write_text(text)
+print(f"warp: merged p10k settings into {target}")
+PY
+fi
+
 echo "bootstrap: done"

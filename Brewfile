@@ -92,6 +92,8 @@ cask "session-manager-plugin"
 cask "terraform-linters/tap/tflint", trusted: true
 # Open-source code editor
 cask "visual-studio-code"
+# Rust-based terminal
+cask "warp"
 vscode "aaron-bond.better-comments"
 vscode "amazonwebservices.aws-toolkit-vscode"
 vscode "anthropic.claude-code"

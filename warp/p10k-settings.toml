@@ -1,0 +1,12 @@
+# Powerlevel10k settings for Warp (https://docs.warp.dev/terminal/appearance/prompt#powerlevel10k)
+# Merged into ~/.warp/settings.toml by bootstrap.sh
+
+[appearance.text]
+font_name = "MesloLGS NF"
+font_size = 13.0
+enforce_minimum_contrast = "never"
+
+[terminal.input]
+honor_ps1 = true
+# Universal input keeps the clickable directory chip above the input (with p10k in blocks).
+input_box_type_setting = "universal"

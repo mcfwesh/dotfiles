@@ -19,7 +19,8 @@ if [ -x "/opt/homebrew/bin/brew" ]; then
 fi
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+# Warp renders prompt/input separately; skip instant prompt there (Warp + p10k docs).
+if [[ "$TERM_PROGRAM" != "WarpTerminal" ]] && [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
@@ -45,6 +46,9 @@ alias which-command='whence'
 
 # activate benevity_rc
 source ~/.benevity_rc
+
+# iTerm tab/bg colors via AppleScript — not supported in Warp.
+[[ "$TERM_PROGRAM" == "WarpTerminal" ]] && export ENABLE_SET_BACKGROUND_COLOR=false
 
 # Git prompt helpers
 parse_git_branch() {

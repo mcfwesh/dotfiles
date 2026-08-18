@@ -57,32 +57,56 @@ from pathlib import Path
 
 fragment = Path(sys.argv[1]).read_text()
 target = Path(sys.argv[2])
+text = target.read_text() if target.exists() else ""
 
-if target.exists():
-    text = target.read_text()
-else:
-    text = ""
+def sections(src):
+    found = []
+    matches = list(re.finditer(r"^(\[[^\]]+\])\s*$", src, flags=re.M))
+    for i, m in enumerate(matches):
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(src)
+        found.append((m.group(1), src[start:end]))
+    return found
 
-for section, body in re.findall(r"(\[[^\]]+\])\n((?:[^\[]|\n)*)", fragment):
+def upsert_key(block, key, value_line):
+    pattern = rf"(?m)^[ \t]*{re.escape(key)}[ \t]*=.*$"
+    if re.search(pattern, block):
+        return re.sub(pattern, value_line, block, count=1)
+    body = block.rstrip("\n")
+    if body:
+        return body + "\n" + value_line + "\n"
+    return value_line + "\n"
+
+for section, body in sections(fragment):
+    kv_lines = []
+    for line in body.splitlines():
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if "=" not in raw:
+            continue
+        key = raw.split("=", 1)[0].strip()
+        kv_lines.append((key, raw))
     if section in text:
-        for line in body.strip().splitlines():
-            key = line.split("=", 1)[0].strip()
-            if not key or key.startswith("#"):
-                continue
-            pattern = rf"^{re.escape(key)}\s*=.*$"
-            if re.search(pattern, text, flags=re.M):
-                text = re.sub(pattern, line.strip(), text, count=1, flags=re.M)
-            elif section in text:
-                text = re.sub(
-                    rf"({re.escape(section)}\n)",
-                    rf"\1{line.strip()}\n",
-                    text,
-                    count=1,
-                )
+        m = re.search(rf"(?m)^{re.escape(section)}\s*$", text)
+        if not m:
+            continue
+        start = m.end()
+        nxt = re.search(r"(?m)^\[[^\]]+\]\s*$", text[start:])
+        end = start + nxt.start() if nxt else len(text)
+        block = text[start:end]
+        for key, value_line in kv_lines:
+            block = upsert_key(block, key, value_line)
+        if block and not block.endswith("\n"):
+            block += "\n"
+        text = text[:start] + block + text[end:]
     else:
         if text and not text.endswith("\n"):
             text += "\n"
-        text += f"\n{section}\n{body.strip()}\n"
+        extra = "\n" + section + "\n"
+        extra += "\n".join(line for _, line in kv_lines)
+        extra += "\n"
+        text += extra
 
 target.write_text(text)
 print(f"warp: merged p10k settings into {target}")

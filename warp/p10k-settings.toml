@@ -9,3 +9,23 @@ enforce_minimum_contrast = "never"
 [terminal.input]
 honor_ps1 = true
 input_box_type_setting = "classic"
+
+# Cmd+T starts at home. Splits keep the current repo. Finder "Open here" still passes a path.
+[session.working_directory_config]
+advanced_mode = true
+
+[session.working_directory_config.global]
+mode = "home_dir"
+custom_dir = ""
+
+[session.working_directory_config.new_tab]
+mode = "home_dir"
+custom_dir = ""
+
+[session.working_directory_config.new_window]
+mode = "home_dir"
+custom_dir = ""
+
+[session.working_directory_config.split_pane]
+mode = "previous_dir"
+custom_dir = ""
